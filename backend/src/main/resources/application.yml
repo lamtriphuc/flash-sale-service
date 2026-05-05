@@ -1,5 +1,5 @@
 server:
-  port: 8088
+  port: 8080
 
 
 spring:
@@ -21,9 +21,14 @@ spring:
         format_sql: true
 
   rabbitmq:
-    host: localhost
+    host: 127.0.0.1
     port: 5672
-    stream:
-      username: admin
-      password: admin
+    username: admin
+    password: admin
+
+
+jwt:
+  secret: 404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970
+  expiration: 86400000
+  refresh_expiration: 604800000
 

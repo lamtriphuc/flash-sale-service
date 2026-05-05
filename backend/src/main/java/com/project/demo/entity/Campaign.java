@@ -1,5 +1,6 @@
 package com.project.demo.entity;
 
+import com.project.demo.enums.CampaignStatus;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDateTime;
@@ -11,7 +12,6 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Builder
 public class Campaign {
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -19,18 +19,13 @@ public class Campaign {
     @Column(nullable = false)
     private String name; // Tên chiến dịch (VD: Flash Sale 11/11)
 
-    @Column(nullable = false)
-    private Integer totalItems; // Tổng số quà tặng/sản phẩm
-
-    @Column(nullable = false)
-    private Integer availableItems; // Số lượng còn lại
-
+    @Column(name = "start_time", nullable = false)
     private LocalDateTime startTime;
+
+    @Column(name = "end_time", nullable = false)
     private LocalDateTime endTime;
 
-    // Trạng thái: DRAFT, ACTIVE, ENDED
-    private String status;
-
-    @Version
-    private Long version;
+    //  DRAFT, ACTIVE, ENDED
+    @Enumerated(EnumType.STRING)
+    private CampaignStatus status;
 }

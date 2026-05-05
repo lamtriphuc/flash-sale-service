@@ -1,3 +1,5 @@
+name: flashsale_project
+
 services:
   rabbitmq:
     image: rabbitmq:3-management-alpine # Bản này cực nhẹ và tích hợp sẵn giao diện Web
