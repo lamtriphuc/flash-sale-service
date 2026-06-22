@@ -1,5 +1,6 @@
-package com.baas.flashsale.auth;
+package com.baas.flashsale.auth.controller;
 
+import com.baas.flashsale.auth.service.AuthService;
 import com.baas.flashsale.auth.dto.AuthResponse;
 import com.baas.flashsale.auth.dto.LoginRequest;
 import jakarta.validation.Valid;

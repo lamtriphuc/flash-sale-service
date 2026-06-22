@@ -1,9 +1,12 @@
-package com.baas.flashsale.flashsale;
+package com.baas.flashsale.flashsale.controller;
 
+import com.baas.flashsale.flashsale.service.PurchaseService;
 import com.baas.flashsale.flashsale.dto.OrderResponse;
 import com.baas.flashsale.flashsale.dto.PurchaseRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -14,22 +17,19 @@ import java.util.List;
 public class PurchaseController {
     private final PurchaseService purchaseService;
 
-    @PostMapping("/{campaignId}/items/{itemId}/purchase")
-    public OrderResponse purchase(
-            @RequestHeader("X-API-Key") String apiKey,
+    @PostMapping("/{campaignId}/orders")
+    public ResponseEntity<OrderResponse> createOrder(
             @PathVariable Long campaignId,
-            @PathVariable Long itemId,
             @Valid @RequestBody PurchaseRequest request
     ) {
-        return purchaseService.purchase(apiKey, campaignId, itemId, request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(purchaseService.createOrder(campaignId, request));
     }
 
     @GetMapping("/{campaignId}/orders")
     public List<OrderResponse> getOrders(
-            @RequestHeader("X-API-Key") String apiKey,
             @PathVariable Long campaignId,
             @RequestParam String userId
     ) {
-        return purchaseService.getOrders(apiKey, campaignId, userId);
+        return purchaseService.getOrders(campaignId, userId);
     }
 }

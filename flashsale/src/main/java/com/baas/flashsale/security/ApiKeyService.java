@@ -7,23 +7,20 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
-import java.util.Base64;
 
 @Service
 @RequiredArgsConstructor
 public class ApiKeyService {
     private final ApiKeyRepository apiKeyRepository;
+    private final ApiKeyHasher apiKeyHasher;
 
     public ApiKeyContext authenticate(String rawApiKey) {
         if (rawApiKey == null || rawApiKey.isBlank()) {
             throw new BusinessException("INVALID_API_KEY", HttpStatus.UNAUTHORIZED, "Missing X-API-Key");
         }
 
-        ApiKey apiKey = apiKeyRepository.findByKeyValueAndActiveTrue(hashApiKey(rawApiKey))
+        ApiKey apiKey = apiKeyRepository.findByKeyValueAndActiveTrue(apiKeyHasher.hash(rawApiKey))
                 .orElseThrow(() -> new BusinessException("INVALID_API_KEY", HttpStatus.UNAUTHORIZED, "Invalid API key"));
 
         if (apiKey.getExpiredAt() != null && apiKey.getExpiredAt().isBefore(LocalDateTime.now())) {
@@ -35,15 +32,5 @@ public class ApiKeyService {
         }
 
         return new ApiKeyContext(apiKey);
-    }
-
-    private String hashApiKey(String rawApiKey) {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hash = digest.digest(rawApiKey.getBytes(StandardCharsets.UTF_8));
-            return Base64.getEncoder().encodeToString(hash);
-        } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException("SHA-256 not available", e);
-        }
     }
 }

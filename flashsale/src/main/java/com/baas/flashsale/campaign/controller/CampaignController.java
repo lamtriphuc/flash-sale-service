@@ -1,11 +1,14 @@
-package com.baas.flashsale.campaign;
+package com.baas.flashsale.campaign.controller;
 
+import com.baas.flashsale.campaign.service.CampaignService;
 import com.baas.flashsale.campaign.dto.CampaignResponse;
 import com.baas.flashsale.campaign.dto.CreateCampaignRequest;
 import com.baas.flashsale.flashsale.dto.CreateFlashSaleItemRequest;
 import com.baas.flashsale.flashsale.dto.FlashSaleItemResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -17,35 +20,31 @@ public class CampaignController {
     private final CampaignService campaignService;
 
     @PostMapping
-    public CampaignResponse createCampaign(
-            @RequestHeader("X-API-Key") String apiKey,
+    public ResponseEntity<CampaignResponse> createCampaign(
             @Valid @RequestBody CreateCampaignRequest request
     ) {
-        return campaignService.createCampaign(apiKey, request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(campaignService.createCampaign(request));
     }
 
     @GetMapping("/{campaignId}")
     public CampaignResponse getCampaign(
-            @RequestHeader("X-API-Key") String apiKey,
             @PathVariable Long campaignId
     ) {
-        return campaignService.getCampaign(apiKey, campaignId);
+        return campaignService.getCampaign(campaignId);
     }
 
     @PostMapping("/{campaignId}/items")
-    public FlashSaleItemResponse addItem(
-            @RequestHeader("X-API-Key") String apiKey,
+    public ResponseEntity<FlashSaleItemResponse> addItem(
             @PathVariable Long campaignId,
             @Valid @RequestBody CreateFlashSaleItemRequest request
     ) {
-        return campaignService.addItem(apiKey, campaignId, request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(campaignService.addItem(campaignId, request));
     }
 
     @GetMapping("/{campaignId}/items")
     public List<FlashSaleItemResponse> getItems(
-            @RequestHeader("X-API-Key") String apiKey,
             @PathVariable Long campaignId
     ) {
-        return campaignService.getItems(apiKey, campaignId);
+        return campaignService.getItems(campaignId);
     }
 }

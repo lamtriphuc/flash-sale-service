@@ -1,17 +1,20 @@
-package com.baas.flashsale.campaign;
+package com.baas.flashsale.campaign.service;
 
+import com.baas.flashsale.campaign.mapper.CampaignMapper;
 import com.baas.flashsale.campaign.dto.CampaignResponse;
 import com.baas.flashsale.campaign.dto.CreateCampaignRequest;
 import com.baas.flashsale.campaign.entity.Campaign;
 import com.baas.flashsale.campaign.entity.CampaignStatus;
 import com.baas.flashsale.campaign.repository.CampaignRepository;
 import com.baas.flashsale.common.BusinessException;
+import com.baas.flashsale.security.CurrentTenant;
 import com.baas.flashsale.flashsale.dto.CreateFlashSaleItemRequest;
 import com.baas.flashsale.flashsale.dto.FlashSaleItemResponse;
+import com.baas.flashsale.flashsale.mapper.FlashSaleItemMapper;
 import com.baas.flashsale.flashsale.entity.FlashSaleItem;
 import com.baas.flashsale.flashsale.repository.FlashSaleItemRepository;
-import com.baas.flashsale.security.ApiKeyContext;
-import com.baas.flashsale.security.ApiKeyService;
+import com.baas.flashsale.realtime.InventoryRealtimePublisher;
+import com.baas.flashsale.tenant.entity.Tenant;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -26,20 +29,21 @@ import java.util.List;
 public class CampaignService {
     private final CampaignRepository campaignRepository;
     private final FlashSaleItemRepository itemRepository;
-    private final ApiKeyService apiKeyService;
+    private final InventoryRealtimePublisher inventoryRealtimePublisher;
+    private final CampaignMapper campaignMapper;
+    private final FlashSaleItemMapper itemMapper;
 
-    public CampaignResponse createCampaign(String rawApiKey, CreateCampaignRequest request) {
-        ApiKeyContext context = apiKeyService.authenticate(rawApiKey);
-
+    public CampaignResponse createCampaign(CreateCampaignRequest request) {
+        Tenant tenant = CurrentTenant.get();
         validateCampaignTime(request.getStartTime(), request.getEndTime());
         String code = request.getCode().trim().toUpperCase();
 
-        if (campaignRepository.existsByTenantIdAndCode(context.getTenant().getId(), code)) {
+        if (campaignRepository.existsByTenantIdAndCode(tenant.getId(), code)) {
             throw new BusinessException("VALIDATION_ERROR", HttpStatus.BAD_REQUEST, "Campaign code already exists in this tenant");
         }
 
         Campaign campaign = Campaign.builder()
-                .tenant(context.getTenant())
+                .tenant(tenant)
                 .code(code)
                 .name(request.getName().trim())
                 .status(CampaignStatus.ACTIVE)
@@ -47,27 +51,24 @@ public class CampaignService {
                 .endTime(request.getEndTime())
                 .build();
 
-        return mapCampaign(campaignRepository.save(campaign));
+        return campaignMapper.toResponse(campaignRepository.save(campaign));
     }
 
     @Transactional(readOnly = true)
-    public CampaignResponse getCampaign(String rawApiKey, Long campaignId) {
-        ApiKeyContext context = apiKeyService.authenticate(rawApiKey);
-        return mapCampaign(findCampaignForTenant(campaignId, context.getTenant().getId()));
+    public CampaignResponse getCampaign(Long campaignId) {
+        return campaignMapper.toResponse(findCampaignForTenant(campaignId, CurrentTenant.getId()));
     }
 
     @Transactional(readOnly = true)
-    public List<FlashSaleItemResponse> getItems(String rawApiKey, Long campaignId) {
-        ApiKeyContext context = apiKeyService.authenticate(rawApiKey);
-        findCampaignForTenant(campaignId, context.getTenant().getId());
+    public List<FlashSaleItemResponse> getItems(Long campaignId) {
+        findCampaignForTenant(campaignId, CurrentTenant.getId());
         return itemRepository.findByCampaignId(campaignId).stream()
-                .map(this::mapItem)
+                .map(itemMapper::toResponse)
                 .toList();
     }
 
-    public FlashSaleItemResponse addItem(String rawApiKey, Long campaignId, CreateFlashSaleItemRequest request) {
-        ApiKeyContext context = apiKeyService.authenticate(rawApiKey);
-        Campaign campaign = findCampaignForTenant(campaignId, context.getTenant().getId());
+    public FlashSaleItemResponse addItem(Long campaignId, CreateFlashSaleItemRequest request) {
+        Campaign campaign = findCampaignForTenant(campaignId, CurrentTenant.getId());
 
         if (request.getSalePrice() >= request.getOriginalPrice()) {
             throw new BusinessException("VALIDATION_ERROR", HttpStatus.BAD_REQUEST, "Sale price must be less than original price");
@@ -84,7 +85,9 @@ public class CampaignService {
                 .active(true)
                 .build();
 
-        return mapItem(itemRepository.save(item));
+        FlashSaleItem savedItem = itemRepository.save(item);
+        inventoryRealtimePublisher.publishAfterCommit(savedItem);
+        return itemMapper.toResponse(savedItem);
     }
 
     private Campaign findCampaignForTenant(Long campaignId, Long tenantId) {
@@ -99,44 +102,6 @@ public class CampaignService {
     }
 
     public CampaignStatus resolveStatus(Campaign campaign) {
-        if (campaign.getStatus() == CampaignStatus.CANCELLED) {
-            return CampaignStatus.CANCELLED;
-        }
-
-        LocalDateTime now = LocalDateTime.now();
-        if (now.isBefore(campaign.getStartTime())) {
-            return CampaignStatus.DRAFT;
-        }
-        if (now.isAfter(campaign.getEndTime())) {
-            return CampaignStatus.ENDED;
-        }
-        return CampaignStatus.ACTIVE;
-    }
-
-    private CampaignResponse mapCampaign(Campaign campaign) {
-        return CampaignResponse.builder()
-                .id(campaign.getId())
-                .tenantId(campaign.getTenant().getId())
-                .code(campaign.getCode())
-                .name(campaign.getName())
-                .status(resolveStatus(campaign))
-                .startTime(campaign.getStartTime())
-                .endTime(campaign.getEndTime())
-                .createdAt(campaign.getCreatedAt())
-                .build();
-    }
-
-    private FlashSaleItemResponse mapItem(FlashSaleItem item) {
-        return FlashSaleItemResponse.builder()
-                .id(item.getId())
-                .campaignId(item.getCampaign().getId())
-                .itemCode(item.getItemCode())
-                .itemName(item.getItemName())
-                .originalPrice(item.getOriginalPrice())
-                .salePrice(item.getSalePrice())
-                .totalQuantity(item.getTotalQuantity())
-                .remainingQuantity(item.getRemainingQuantity())
-                .active(item.getActive())
-                .build();
+        return campaignMapper.resolveStatus(campaign);
     }
 }

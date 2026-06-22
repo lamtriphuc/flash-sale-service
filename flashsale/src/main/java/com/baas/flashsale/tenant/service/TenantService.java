@@ -1,5 +1,8 @@
-package com.baas.flashsale.tenant;
+package com.baas.flashsale.tenant.service;
 
+import com.baas.flashsale.common.BusinessException;
+import com.baas.flashsale.security.ApiKeyGenerator;
+import com.baas.flashsale.security.ApiKeyHasher;
 import com.baas.flashsale.tenant.dto.ApiKeyResponse;
 import com.baas.flashsale.tenant.dto.CreateApiKeyRequest;
 import com.baas.flashsale.tenant.dto.CreateTenantRequest;
@@ -12,15 +15,11 @@ import com.baas.flashsale.tenant.repository.ApiKeyRepository;
 import com.baas.flashsale.tenant.repository.TenantRepository;
 import com.baas.flashsale.tenant.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.security.SecureRandom;
-import java.util.Base64;
 import java.util.List;
 
 @Service
@@ -31,17 +30,19 @@ public class TenantService {
     private final ApiKeyRepository apiKeyRepository;
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final ApiKeyGenerator apiKeyGenerator;
+    private final ApiKeyHasher apiKeyHasher;
 
     public TenantResponse createTenant(CreateTenantRequest request) {
         if (request.getAdminUsername() == null || request.getAdminUsername().isBlank()) {
-            throw new RuntimeException("Admin username is required");
+            throw new BusinessException("VALIDATION_ERROR", HttpStatus.BAD_REQUEST, "Admin username is required");
         }
         if (request.getAdminPassword() == null || request.getAdminPassword().isBlank()) {
-            throw new RuntimeException("Admin password is required");
+            throw new BusinessException("VALIDATION_ERROR", HttpStatus.BAD_REQUEST, "Admin password is required");
         }
 
         if (tenantRepository.existsByCode(request.getCode())) {
-            throw new RuntimeException("Tenant code already exists");
+            throw new BusinessException("VALIDATION_ERROR", HttpStatus.BAD_REQUEST, "Tenant code already exists");
         }
 
         Tenant tenant = Tenant.builder()
@@ -63,11 +64,11 @@ public class TenantService {
                 .build();
         User savedOwner = userRepository.save(owner);
 
-        String rawApiKey = generateApiKey();
+        String rawApiKey = apiKeyGenerator.generate();
         ApiKey apiKey = ApiKey.builder()
                 .tenant(savedTenant)
                 .name("Default Key")
-                .keyValue(hashApiKey(rawApiKey))
+                .keyValue(apiKeyHasher.hash(rawApiKey))
                 .active(true)
                 .build();
         apiKeyRepository.save(apiKey);
@@ -82,17 +83,17 @@ public class TenantService {
                 .toList();
     }
 
-    public TenantResponse getTenantById(Long id) {
-        Tenant tenant = findTenantById(id);
+    public TenantResponse getTenantById(Long currentTenantId) {
+        Tenant tenant = findTenantById(currentTenantId);
         return mapToTenantResponse(tenant);
     }
 
-    public TenantResponse updateTenant(Long id, CreateTenantRequest request) {
-        Tenant tenant = findTenantById(id);
+    public TenantResponse updateTenant(Long currentTenantId, CreateTenantRequest request) {
+        Tenant tenant = findTenantById(currentTenantId);
 
         if (!tenant.getCode().equalsIgnoreCase(request.getCode())
                 && tenantRepository.existsByCode(request.getCode())) {
-            throw new RuntimeException("Tenant code already exists");
+            throw new BusinessException("VALIDATION_ERROR", HttpStatus.BAD_REQUEST, "Tenant code already exists");
         }
 
         tenant.setCode(request.getCode().trim().toUpperCase());
@@ -102,21 +103,21 @@ public class TenantService {
         return mapToTenantResponse(tenantRepository.save(tenant));
     }
 
-    public void deactivateTenant(Long id) {
-        Tenant tenant = findTenantById(id);
+    public void deactivateTenant(Long currentTenantId) {
+        Tenant tenant = findTenantById(currentTenantId);
         tenant.setActive(false);
         tenantRepository.save(tenant);
     }
 
-    public ApiKeyResponse createApiKey(Long tenantId, CreateApiKeyRequest request) {
-        Tenant tenant = findTenantById(tenantId);
+    public ApiKeyResponse createApiKey(Long currentTenantId, CreateApiKeyRequest request) {
+        Tenant tenant = findTenantById(currentTenantId);
 
-        String rawApiKey = generateApiKey();
+        String rawApiKey = apiKeyGenerator.generate();
 
         ApiKey apiKey = ApiKey.builder()
                 .tenant(tenant)
                 .name(request.getName())
-                .keyValue(hashApiKey(rawApiKey))
+                .keyValue(apiKeyHasher.hash(rawApiKey))
                 .active(true)
                 .expiredAt(request.getExpiredAt())
                 .build();
@@ -126,18 +127,19 @@ public class TenantService {
         return mapToApiKeyResponse(savedApiKey, rawApiKey);
     }
 
-    public List<ApiKeyResponse> getApiKeysByTenant(Long tenantId) {
-        findTenantById(tenantId);
+    public List<ApiKeyResponse> getApiKeysByTenant(Long currentTenantId) {
+        findTenantById(currentTenantId);
 
-        return apiKeyRepository.findByTenantId(tenantId)
+        return apiKeyRepository.findByTenantId(currentTenantId)
                 .stream()
                 .map(apiKey -> mapToApiKeyResponse(apiKey, null))
                 .toList();
     }
 
-    public void deactivateApiKey(Long apiKeyId) {
+    public void deactivateApiKey(Long currentTenantId, Long apiKeyId) {
         ApiKey apiKey = apiKeyRepository.findById(apiKeyId)
-                .orElseThrow(() -> new RuntimeException("API key not found"));
+                .filter(key -> key.getTenant().getId().equals(currentTenantId))
+                .orElseThrow(() -> new BusinessException("FORBIDDEN_RESOURCE", HttpStatus.FORBIDDEN, "API key does not belong to tenant"));
 
         apiKey.setActive(false);
         apiKeyRepository.save(apiKey);
@@ -147,7 +149,7 @@ public class TenantService {
     // Utils
     private Tenant findTenantById(Long id) {
         return tenantRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Tenant not found"));
+                .orElseThrow(() -> new BusinessException("FORBIDDEN_RESOURCE", HttpStatus.FORBIDDEN, "Tenant not found"));
     }
 
     private TenantResponse mapToTenantResponse(Tenant tenant) {
@@ -179,22 +181,4 @@ public class TenantService {
                 .build();
     }
 
-    private String generateApiKey() {
-        byte[] randomBytes = new byte[32];
-        new SecureRandom().nextBytes(randomBytes);
-
-        return "fs_" + Base64.getUrlEncoder()
-                .withoutPadding()
-                .encodeToString(randomBytes);
-    }
-
-    private String hashApiKey(String rawApiKey) {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hash = digest.digest(rawApiKey.getBytes(StandardCharsets.UTF_8));
-            return Base64.getEncoder().encodeToString(hash);
-        } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException("SHA-256 not available", e);
-        }
-    }
 }

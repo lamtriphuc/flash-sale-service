@@ -1,4 +1,4 @@
-package com.baas.flashsale.auth;
+package com.baas.flashsale.auth.service;
 
 import com.baas.flashsale.auth.dto.AuthResponse;
 import com.baas.flashsale.auth.dto.LoginRequest;

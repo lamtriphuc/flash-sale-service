@@ -1,5 +1,6 @@
-package com.baas.flashsale.tenant;
+package com.baas.flashsale.tenant.service;
 
+import com.baas.flashsale.common.BusinessException;
 import com.baas.flashsale.tenant.dto.CreateUserRequest;
 import com.baas.flashsale.tenant.dto.UpdateUserRequest;
 import com.baas.flashsale.tenant.dto.UserResponse;
@@ -8,6 +9,7 @@ import com.baas.flashsale.tenant.entity.User;
 import com.baas.flashsale.tenant.repository.TenantRepository;
 import com.baas.flashsale.tenant.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,18 +24,18 @@ public class UserService {
     private final TenantRepository tenantRepository;
     private final PasswordEncoder passwordEncoder;
 
-    public UserResponse createUser(CreateUserRequest request) {
-        Tenant tenant = tenantRepository.findById(request.getTenantId())
-                .orElseThrow(() -> new RuntimeException("Tenant not found"));
+    public UserResponse createUser(Long tenantId, CreateUserRequest request) {
+        Tenant tenant = tenantRepository.findById(tenantId)
+                .orElseThrow(() -> new BusinessException("FORBIDDEN_RESOURCE", HttpStatus.FORBIDDEN, "Tenant not found"));
 
         if (!Boolean.TRUE.equals(tenant.getActive())) {
-            throw new RuntimeException("Tenant is inactive");
+            throw new BusinessException("TENANT_SUSPENDED", HttpStatus.FORBIDDEN, "Tenant is inactive");
         }
 
         String username = request.getUsername().trim();
 
-        if (userRepository.existsByTenantIdAndUsername(request.getTenantId(), username)) {
-            throw new RuntimeException("Username already exists in this tenant");
+        if (userRepository.existsByTenantIdAndUsername(tenantId, username)) {
+            throw new BusinessException("VALIDATION_ERROR", HttpStatus.BAD_REQUEST, "Username already exists in this tenant");
         }
 
         User user = User.builder()
@@ -50,30 +52,20 @@ public class UserService {
         return mapToUserResponse(savedUser);
     }
 
-    public List<UserResponse> getAllUsers() {
-        return userRepository.findAll()
-                .stream()
-                .map(this::mapToUserResponse)
-                .toList();
-    }
-
     public List<UserResponse> getUsersByTenant(Long tenantId) {
-        tenantRepository.findById(tenantId)
-                .orElseThrow(() -> new RuntimeException("Tenant not found"));
-
         return userRepository.findByTenantId(tenantId)
                 .stream()
                 .map(this::mapToUserResponse)
                 .toList();
     }
 
-    public UserResponse getUserById(Long id) {
-        User user = findUserById(id);
+    public UserResponse getUserById(Long tenantId, Long id) {
+        User user = findUserById(tenantId, id);
         return mapToUserResponse(user);
     }
 
-    public UserResponse updateUser(Long id, UpdateUserRequest request) {
-        User user = findUserById(id);
+    public UserResponse updateUser(Long tenantId, Long id, UpdateUserRequest request) {
+        User user = findUserById(tenantId, id);
 
         user.setFullName(request.getFullName().trim());
         user.setRole(request.getRole());
@@ -82,15 +74,16 @@ public class UserService {
         return mapToUserResponse(userRepository.save(user));
     }
 
-    public void deactivateUser(Long id) {
-        User user = findUserById(id);
+    public void deactivateUser(Long tenantId, Long id) {
+        User user = findUserById(tenantId, id);
         user.setActive(false);
         userRepository.save(user);
     }
 
-    private User findUserById(Long id) {
+    private User findUserById(Long tenantId, Long id) {
         return userRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .filter(user -> user.getTenant().getId().equals(tenantId))
+                .orElseThrow(() -> new BusinessException("FORBIDDEN_RESOURCE", HttpStatus.FORBIDDEN, "User does not belong to tenant"));
     }
 
     private UserResponse mapToUserResponse(User user) {
