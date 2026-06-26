@@ -4,6 +4,7 @@ import com.baas.flashsale.flashsale.entity.FlashSaleItem;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -18,4 +19,8 @@ public interface FlashSaleItemRepository extends JpaRepository<FlashSaleItem, Lo
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select i from FlashSaleItem i where i.id = :id and i.campaign.id = :campaignId")
     Optional<FlashSaleItem> findByIdAndCampaignIdForUpdate(@Param("id") Long id, @Param("campaignId") Long campaignId);
+
+    @Modifying
+    @Query("update FlashSaleItem i set i.remainingQuantity = :remainingQuantity where i.id = :id")
+    void updateRemainingQuantity(@Param("id") Long id, @Param("remainingQuantity") Integer remainingQuantity);
 }

@@ -37,33 +37,46 @@ public class PurchaseService {
     private final OrderRepository orderRepository;
     private final InventoryRealtimePublisher inventoryRealtimePublisher;
     private final OrderMapper orderMapper;
+    private final InventoryGateService inventoryGateService;
 
     @Transactional(noRollbackFor = BusinessException.class)
     public OrderResponse createOrder(Long campaignId, PurchaseRequest request) {
         Tenant tenant = CurrentTenant.get();
         Campaign campaign = findCampaignForTenant(campaignId, tenant.getId());
-        Participant participant = findOrCreateParticipant(tenant, request.getUserId().trim());
-        FlashSaleItem item = itemRepository.findByIdAndCampaignIdForUpdate(request.getItemId(), campaignId)
+        String userId = request.getUserId().trim();
+        FlashSaleItem item = itemRepository.findByIdAndCampaignId(request.getItemId(), campaignId)
                 .orElseThrow(() -> new BusinessException("ITEM_NOT_FOUND", HttpStatus.NOT_FOUND, "Item not found in campaign"));
 
         CampaignStatus effectiveStatus = campaignService.resolveStatus(campaign);
         if (effectiveStatus != CampaignStatus.ACTIVE) {
-            Order order = saveFailedOrder(tenant, campaign, item, participant, OrderFailReason.CAMPAIGN_NOT_ACTIVE);
-            throw conflict(OrderFailReason.CAMPAIGN_NOT_ACTIVE, "Campaign is not active", order);
+            throw conflict(OrderFailReason.CAMPAIGN_NOT_ACTIVE, "Campaign is not active");
         }
 
-        if (!Boolean.TRUE.equals(item.getActive()) || item.getRemainingQuantity() <= 0) {
-            Order order = saveFailedOrder(tenant, campaign, item, participant, OrderFailReason.OUT_OF_STOCK);
-            throw conflict(OrderFailReason.OUT_OF_STOCK, "Item is out of stock", order);
+        if (!Boolean.TRUE.equals(item.getActive())) {
+            throw conflict(OrderFailReason.OUT_OF_STOCK, "Item is not active");
         }
+
+        InventoryGateResult reservation = inventoryGateService.reserve(
+                campaignId,
+                item.getId(),
+                userId,
+                item.getRemainingQuantity()
+        );
+
+        if (reservation.status() == InventoryGateResult.Status.OUT_OF_STOCK) {
+            throw conflict(OrderFailReason.OUT_OF_STOCK, "Item is out of stock");
+        }
+
+        if (reservation.status() == InventoryGateResult.Status.ALREADY_PURCHASED) {
+            throw conflict(OrderFailReason.ALREADY_PURCHASED, "User already purchased in this campaign");
+        }
+
+        Participant participant = findOrCreateParticipant(tenant, userId);
 
         if (orderRepository.existsByCampaignIdAndParticipantIdAndStatus(campaignId, participant.getId(), OrderStatus.SUCCESS)) {
-            Order order = saveFailedOrder(tenant, campaign, item, participant, OrderFailReason.ALREADY_PURCHASED);
-            throw conflict(OrderFailReason.ALREADY_PURCHASED, "User already purchased in this campaign", order);
+            inventoryGateService.releaseReservation(campaignId, item.getId(), userId);
+            throw conflict(OrderFailReason.ALREADY_PURCHASED, "User already purchased in this campaign");
         }
-
-        item.setRemainingQuantity(item.getRemainingQuantity() - 1);
-        itemRepository.save(item);
 
         Order order = Order.builder()
                 .tenant(tenant)
@@ -73,9 +86,17 @@ public class PurchaseService {
                 .status(OrderStatus.SUCCESS)
                 .build();
 
-        Order savedOrder = orderRepository.save(order);
-        inventoryRealtimePublisher.publishAfterCommit(item);
-        return orderMapper.toResponse(savedOrder);
+        try {
+            itemRepository.updateRemainingQuantity(item.getId(), reservation.remainingQuantity());
+            item.setRemainingQuantity(reservation.remainingQuantity());
+
+            Order savedOrder = orderRepository.save(order);
+            inventoryRealtimePublisher.publishAfterCommit(item);
+            return orderMapper.toResponse(savedOrder);
+        } catch (RuntimeException ex) {
+            inventoryGateService.releaseReservation(campaignId, item.getId(), userId);
+            throw ex;
+        }
     }
 
     @Transactional(readOnly = true)
@@ -99,25 +120,7 @@ public class PurchaseService {
                 .orElseThrow(() -> new IllegalStateException("Participant was not created"));
     }
 
-    private Order saveFailedOrder(
-            Tenant tenant,
-            Campaign campaign,
-            FlashSaleItem item,
-            Participant participant,
-            OrderFailReason reason
-    ) {
-        Order order = Order.builder()
-                .tenant(tenant)
-                .campaign(campaign)
-                .item(item)
-                .participant(participant)
-                .status(OrderStatus.FAILED)
-                .failReason(reason.name())
-                .build();
-        return orderRepository.save(order);
-    }
-
-    private BusinessException conflict(OrderFailReason reason, String message, Order order) {
-        return new BusinessException(reason.name(), HttpStatus.CONFLICT, message + " (orderId=" + order.getId() + ")");
+    private BusinessException conflict(OrderFailReason reason, String message) {
+        return new BusinessException(reason.name(), HttpStatus.CONFLICT, message);
     }
 }

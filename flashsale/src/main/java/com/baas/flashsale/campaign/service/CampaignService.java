@@ -13,6 +13,7 @@ import com.baas.flashsale.flashsale.dto.FlashSaleItemResponse;
 import com.baas.flashsale.flashsale.mapper.FlashSaleItemMapper;
 import com.baas.flashsale.flashsale.entity.FlashSaleItem;
 import com.baas.flashsale.flashsale.repository.FlashSaleItemRepository;
+import com.baas.flashsale.flashsale.service.InventoryGateService;
 import com.baas.flashsale.realtime.InventoryRealtimePublisher;
 import com.baas.flashsale.tenant.entity.Tenant;
 import lombok.RequiredArgsConstructor;
@@ -32,6 +33,7 @@ public class CampaignService {
     private final InventoryRealtimePublisher inventoryRealtimePublisher;
     private final CampaignMapper campaignMapper;
     private final FlashSaleItemMapper itemMapper;
+    private final InventoryGateService inventoryGateService;
 
     public CampaignResponse createCampaign(CreateCampaignRequest request) {
         Tenant tenant = CurrentTenant.get();
@@ -86,6 +88,7 @@ public class CampaignService {
                 .build();
 
         FlashSaleItem savedItem = itemRepository.save(item);
+        inventoryGateService.initializeStock(campaignId, savedItem.getId(), savedItem.getRemainingQuantity());
         inventoryRealtimePublisher.publishAfterCommit(savedItem);
         return itemMapper.toResponse(savedItem);
     }
