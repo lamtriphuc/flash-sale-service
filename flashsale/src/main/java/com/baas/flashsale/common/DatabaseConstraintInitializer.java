@@ -16,7 +16,7 @@ public class DatabaseConstraintInitializer implements ApplicationRunner {
         jdbcTemplate.execute("""
                 create unique index if not exists ux_orders_success_campaign_participant
                 on orders (campaign_id, participant_id)
-                where status = 'SUCCESS'
+                where status = 'CONFIRMED'
                 """);
     }
 }

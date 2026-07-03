@@ -13,6 +13,8 @@ public class CampaignResponse {
     private Long tenantId;
     private String code;
     private String name;
+    private String thumbnailUrl;
+    private String thumbnailPublicId;
     private CampaignStatus status;
     private LocalDateTime startTime;
     private LocalDateTime endTime;

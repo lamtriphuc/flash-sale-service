@@ -23,4 +23,8 @@ public interface FlashSaleItemRepository extends JpaRepository<FlashSaleItem, Lo
     @Modifying
     @Query("update FlashSaleItem i set i.remainingQuantity = :remainingQuantity where i.id = :id")
     void updateRemainingQuantity(@Param("id") Long id, @Param("remainingQuantity") Integer remainingQuantity);
+
+    @Modifying
+    @Query("update FlashSaleItem i set i.remainingQuantity = i.remainingQuantity + 1 where i.id = :id")
+    void incrementRemainingQuantity(@Param("id") Long id);
 }

@@ -16,25 +16,37 @@ import java.util.function.Function;
 public class JwtService {
     private final SecretKey signingKey;
     private final long expirationMs;
+    private final long refreshExpirationMs;
 
     public JwtService(
             @Value("${app.jwt.secret}") String secret,
-            @Value("${app.jwt.expiration-ms}") long expirationMs
+            @Value("${app.jwt.expiration-ms}") long expirationMs,
+            @Value("${app.jwt.refresh-expiration-ms}") long refreshExpirationMs
     ) {
         this.signingKey = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
         this.expirationMs = expirationMs;
+        this.refreshExpirationMs = refreshExpirationMs;
     }
 
     public String generateToken(TenantUserDetails userDetails) {
+        return generateToken(userDetails, expirationMs, "access");
+    }
+
+    public String generateRefreshToken(TenantUserDetails userDetails) {
+        return generateToken(userDetails, refreshExpirationMs, "refresh");
+    }
+
+    private String generateToken(TenantUserDetails userDetails, long tokenTtlMs, String tokenType) {
         Date now = new Date();
-        Date expiresAt = new Date(now.getTime() + expirationMs);
+        Date expiresAt = new Date(now.getTime() + tokenTtlMs);
 
         return Jwts.builder()
-                .subject(userDetails.getUsername())
+                .subject(userDetails.getEmail())
                 .claim("userId", userDetails.getId())
                 .claim("tenantId", userDetails.getTenantId())
                 .claim("tenantCode", userDetails.getTenantCode())
                 .claim("role", userDetails.getRole().name())
+                .claim("type", tokenType)
                 .issuedAt(now)
                 .expiration(expiresAt)
                 .signWith(signingKey)
@@ -50,13 +62,29 @@ public class JwtService {
         return tenantId == null ? null : tenantId.longValue();
     }
 
+    public String extractTokenType(String token) {
+        return extractClaim(token, claims -> claims.get("type", String.class));
+    }
+
     public boolean isTokenValid(String token, UserDetails userDetails) {
         String username = extractUsername(token);
-        return username.equals(userDetails.getUsername()) && !isTokenExpired(token);
+        return username.equals(((TenantUserDetails) userDetails).getEmail())
+                && "access".equals(extractTokenType(token))
+                && !isTokenExpired(token);
+    }
+
+    public boolean isRefreshTokenValid(String token, TenantUserDetails userDetails) {
+        return userDetails.getEmail().equals(extractUsername(token))
+                && "refresh".equals(extractTokenType(token))
+                && !isTokenExpired(token);
     }
 
     public long getExpirationMs() {
         return expirationMs;
+    }
+
+    public long getRefreshExpirationMs() {
+        return refreshExpirationMs;
     }
 
     private boolean isTokenExpired(String token) {

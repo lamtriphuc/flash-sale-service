@@ -1,17 +1,11 @@
 package com.baas.flashsale.tenant.service;
 
 import com.baas.flashsale.common.BusinessException;
-import com.baas.flashsale.security.ApiKeyGenerator;
-import com.baas.flashsale.security.ApiKeyHasher;
-import com.baas.flashsale.tenant.dto.ApiKeyResponse;
-import com.baas.flashsale.tenant.dto.CreateApiKeyRequest;
 import com.baas.flashsale.tenant.dto.CreateTenantRequest;
 import com.baas.flashsale.tenant.dto.TenantResponse;
-import com.baas.flashsale.tenant.entity.ApiKey;
 import com.baas.flashsale.tenant.entity.Tenant;
 import com.baas.flashsale.tenant.entity.User;
 import com.baas.flashsale.tenant.entity.UserRole;
-import com.baas.flashsale.tenant.repository.ApiKeyRepository;
 import com.baas.flashsale.tenant.repository.TenantRepository;
 import com.baas.flashsale.tenant.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -27,11 +21,8 @@ import java.util.List;
 @Transactional
 public class TenantService {
     private final TenantRepository tenantRepository;
-    private final ApiKeyRepository apiKeyRepository;
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
-    private final ApiKeyGenerator apiKeyGenerator;
-    private final ApiKeyHasher apiKeyHasher;
 
     public TenantResponse createTenant(CreateTenantRequest request) {
         if (request.getAdminUsername() == null || request.getAdminUsername().isBlank()) {
@@ -54,26 +45,19 @@ public class TenantService {
 
         Tenant savedTenant = tenantRepository.save(tenant);
 
+        String adminEmail = request.getAdminUsername().trim().toLowerCase();
         User owner = User.builder()
                 .tenant(savedTenant)
-                .username(request.getAdminUsername().trim())
+                .username(adminEmail)
+                .email(adminEmail)
                 .passwordHash(passwordEncoder.encode(request.getAdminPassword()))
                 .fullName(request.getAdminUsername().trim())
-                .role(UserRole.OWNER)
+                .role(UserRole.ADMIN)
                 .active(true)
                 .build();
         User savedOwner = userRepository.save(owner);
 
-        String rawApiKey = apiKeyGenerator.generate();
-        ApiKey apiKey = ApiKey.builder()
-                .tenant(savedTenant)
-                .name("Default Key")
-                .keyValue(apiKeyHasher.hash(rawApiKey))
-                .active(true)
-                .build();
-        apiKeyRepository.save(apiKey);
-
-        return mapToTenantResponse(savedTenant, savedOwner.getId(), rawApiKey);
+        return mapToTenantResponse(savedTenant, savedOwner.getId());
     }
 
     public List<TenantResponse> getAllTenants() {
@@ -109,43 +93,6 @@ public class TenantService {
         tenantRepository.save(tenant);
     }
 
-    public ApiKeyResponse createApiKey(Long currentTenantId, CreateApiKeyRequest request) {
-        Tenant tenant = findTenantById(currentTenantId);
-
-        String rawApiKey = apiKeyGenerator.generate();
-
-        ApiKey apiKey = ApiKey.builder()
-                .tenant(tenant)
-                .name(request.getName())
-                .keyValue(apiKeyHasher.hash(rawApiKey))
-                .active(true)
-                .expiredAt(request.getExpiredAt())
-                .build();
-
-        ApiKey savedApiKey = apiKeyRepository.save(apiKey);
-
-        return mapToApiKeyResponse(savedApiKey, rawApiKey);
-    }
-
-    public List<ApiKeyResponse> getApiKeysByTenant(Long currentTenantId) {
-        findTenantById(currentTenantId);
-
-        return apiKeyRepository.findByTenantId(currentTenantId)
-                .stream()
-                .map(apiKey -> mapToApiKeyResponse(apiKey, null))
-                .toList();
-    }
-
-    public void deactivateApiKey(Long currentTenantId, Long apiKeyId) {
-        ApiKey apiKey = apiKeyRepository.findById(apiKeyId)
-                .filter(key -> key.getTenant().getId().equals(currentTenantId))
-                .orElseThrow(() -> new BusinessException("FORBIDDEN_RESOURCE", HttpStatus.FORBIDDEN, "API key does not belong to tenant"));
-
-        apiKey.setActive(false);
-        apiKeyRepository.save(apiKey);
-    }
-
-
     // Utils
     private Tenant findTenantById(Long id) {
         return tenantRepository.findById(id)
@@ -153,10 +100,10 @@ public class TenantService {
     }
 
     private TenantResponse mapToTenantResponse(Tenant tenant) {
-        return mapToTenantResponse(tenant, null, null);
+        return mapToTenantResponse(tenant, null);
     }
 
-    private TenantResponse mapToTenantResponse(Tenant tenant, Long ownerUserId, String rawApiKey) {
+    private TenantResponse mapToTenantResponse(Tenant tenant, Long ownerUserId) {
         return TenantResponse.builder()
                 .id(tenant.getId())
                 .code(tenant.getCode())
@@ -165,19 +112,6 @@ public class TenantService {
                 .active(tenant.getActive())
                 .createdAt(tenant.getCreatedAt())
                 .ownerUserId(ownerUserId)
-                .apiKey(rawApiKey)
-                .build();
-    }
-
-    private ApiKeyResponse mapToApiKeyResponse(ApiKey apiKey, String rawApiKey) {
-        return ApiKeyResponse.builder()
-                .id(apiKey.getId())
-                .tenantId(apiKey.getTenant().getId())
-                .name(apiKey.getName())
-                .keyValue(rawApiKey)
-                .active(apiKey.getActive())
-                .expiredAt(apiKey.getExpiredAt())
-                .createdAt(apiKey.getCreatedAt())
                 .build();
     }
 

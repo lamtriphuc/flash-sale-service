@@ -16,6 +16,7 @@ public class TenantUserDetails implements UserDetails {
     private final Long tenantId;
     private final String tenantCode;
     private final String username;
+    private final String email;
     private final String password;
     private final String fullName;
     private final UserRole role;
@@ -28,6 +29,7 @@ public class TenantUserDetails implements UserDetails {
         this.tenantId = user.getTenant().getId();
         this.tenantCode = user.getTenant().getCode();
         this.username = user.getUsername();
+        this.email = user.getEmail();
         this.password = user.getPasswordHash();
         this.fullName = user.getFullName();
         this.role = user.getRole();

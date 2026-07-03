@@ -41,4 +41,21 @@ public class RedisConfig {
                 return {'RESERVED', remaining}
                 """, List.class);
     }
+
+    @Bean
+    public DefaultRedisScript<List> releaseInventoryScript() {
+        return new DefaultRedisScript<>("""
+                local stockKey = KEYS[1]
+                local buyersKey = KEYS[2]
+                local userId = ARGV[1]
+
+                if redis.call('SISMEMBER', buyersKey, userId) == 0 then
+                  return {'NOT_RESERVED', redis.call('GET', stockKey) or '0'}
+                end
+
+                local remaining = redis.call('INCR', stockKey)
+                redis.call('SREM', buyersKey, userId)
+                return {'RELEASED', remaining}
+                """, List.class);
+    }
 }

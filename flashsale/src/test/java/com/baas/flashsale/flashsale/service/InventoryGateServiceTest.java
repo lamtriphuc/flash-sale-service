@@ -28,6 +28,9 @@ class InventoryGateServiceTest {
     private DefaultRedisScript<List> reserveInventoryScript;
 
     @Mock
+    private DefaultRedisScript<List> releaseInventoryScript;
+
+    @Mock
     private RedisKeyBuilder redisKeyBuilder;
 
     @Mock
@@ -88,13 +91,12 @@ class InventoryGateServiceTest {
     @Test
     void releaseReservationIncrementsStockAndRemovesBuyer() {
         mockKeys();
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        when(redisTemplate.opsForSet()).thenReturn(setOperations);
+        when(redisTemplate.execute(eq(releaseInventoryScript), any(List.class), eq("user-1")))
+                .thenReturn(List.of("RELEASED", "100"));
 
         inventoryGateService.releaseReservation(1L, 10L, "user-1");
 
-        verify(valueOperations).increment("stock-key");
-        verify(setOperations).remove("buyers-key", "user-1");
+        verify(redisTemplate).execute(eq(releaseInventoryScript), any(List.class), eq("user-1"));
     }
 
     private void mockKeys() {

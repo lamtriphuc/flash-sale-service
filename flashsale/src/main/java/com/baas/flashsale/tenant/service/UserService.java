@@ -32,15 +32,16 @@ public class UserService {
             throw new BusinessException("TENANT_SUSPENDED", HttpStatus.FORBIDDEN, "Tenant is inactive");
         }
 
-        String username = request.getUsername().trim();
+        String username = request.getUsername().trim().toLowerCase();
 
-        if (userRepository.existsByTenantIdAndUsername(tenantId, username)) {
-            throw new BusinessException("VALIDATION_ERROR", HttpStatus.BAD_REQUEST, "Username already exists in this tenant");
+        if (userRepository.existsByEmail(username)) {
+            throw new BusinessException("VALIDATION_ERROR", HttpStatus.BAD_REQUEST, "Email already exists");
         }
 
         User user = User.builder()
                 .tenant(tenant)
                 .username(username)
+                .email(username)
                 .passwordHash(passwordEncoder.encode(request.getPassword()))
                 .fullName(request.getFullName().trim())
                 .role(request.getRole())

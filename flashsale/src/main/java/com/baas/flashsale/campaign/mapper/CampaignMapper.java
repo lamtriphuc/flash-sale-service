@@ -15,6 +15,8 @@ public class CampaignMapper {
                 .tenantId(campaign.getTenant().getId())
                 .code(campaign.getCode())
                 .name(campaign.getName())
+                .thumbnailUrl(campaign.getThumbnailUrl())
+                .thumbnailPublicId(campaign.getThumbnailPublicId())
                 .status(resolveStatus(campaign))
                 .startTime(campaign.getStartTime())
                 .endTime(campaign.getEndTime())
@@ -23,17 +25,13 @@ public class CampaignMapper {
     }
 
     public CampaignStatus resolveStatus(Campaign campaign) {
-        if (campaign.getStatus() == CampaignStatus.CANCELLED) {
-            return CampaignStatus.CANCELLED;
-        }
-
         LocalDateTime now = LocalDateTime.now();
         if (now.isBefore(campaign.getStartTime())) {
-            return CampaignStatus.DRAFT;
+            return CampaignStatus.UPCOMING;
         }
         if (now.isAfter(campaign.getEndTime())) {
             return CampaignStatus.ENDED;
         }
-        return CampaignStatus.ACTIVE;
+        return CampaignStatus.ONGOING;
     }
 }

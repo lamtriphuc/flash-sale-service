@@ -7,12 +7,8 @@ import lombok.Setter;
 @Getter
 @Setter
 public class LoginRequest {
-    private Long tenantId;
-
-    private String tenantCode;
-
-    @NotBlank(message = "Username is required")
-    private String username;
+    @NotBlank(message = "Email is required")
+    private String email;
 
     @NotBlank(message = "Password is required")
     private String password;

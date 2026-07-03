@@ -41,6 +41,12 @@ public class Order {
 
     private String failReason;
 
+    private LocalDateTime paymentExpiresAt;
+
+    private LocalDateTime confirmedAt;
+
+    private LocalDateTime cancelledAt;
+
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
 

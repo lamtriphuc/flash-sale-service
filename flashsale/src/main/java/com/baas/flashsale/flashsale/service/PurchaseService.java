@@ -5,7 +5,7 @@ import com.baas.flashsale.campaign.entity.Campaign;
 import com.baas.flashsale.campaign.entity.CampaignStatus;
 import com.baas.flashsale.campaign.repository.CampaignRepository;
 import com.baas.flashsale.common.BusinessException;
-import com.baas.flashsale.security.CurrentTenant;
+import com.baas.flashsale.security.AuthenticatedUser;
 import com.baas.flashsale.flashsale.mapper.OrderMapper;
 import com.baas.flashsale.flashsale.dto.OrderResponse;
 import com.baas.flashsale.flashsale.dto.PurchaseRequest;
@@ -20,6 +20,7 @@ import com.baas.flashsale.participant.repository.ParticipantRepository;
 import com.baas.flashsale.realtime.InventoryRealtimePublisher;
 import com.baas.flashsale.tenant.entity.Tenant;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -39,16 +40,19 @@ public class PurchaseService {
     private final OrderMapper orderMapper;
     private final InventoryGateService inventoryGateService;
 
+    @Value("${app.payment.timeout-minutes:5}")
+    private long paymentHoldMinutes;
+
     @Transactional(noRollbackFor = BusinessException.class)
     public OrderResponse createOrder(Long campaignId, PurchaseRequest request) {
-        Tenant tenant = CurrentTenant.get();
+        Tenant tenant = Tenant.builder().id(AuthenticatedUser.tenantId()).build();
         Campaign campaign = findCampaignForTenant(campaignId, tenant.getId());
-        String userId = request.getUserId().trim();
+        String userId = AuthenticatedUser.get().getId().toString();
         FlashSaleItem item = itemRepository.findByIdAndCampaignId(request.getItemId(), campaignId)
                 .orElseThrow(() -> new BusinessException("ITEM_NOT_FOUND", HttpStatus.NOT_FOUND, "Item not found in campaign"));
 
         CampaignStatus effectiveStatus = campaignService.resolveStatus(campaign);
-        if (effectiveStatus != CampaignStatus.ACTIVE) {
+        if (effectiveStatus != CampaignStatus.ONGOING) {
             throw conflict(OrderFailReason.CAMPAIGN_NOT_ACTIVE, "Campaign is not active");
         }
 
@@ -73,7 +77,8 @@ public class PurchaseService {
 
         Participant participant = findOrCreateParticipant(tenant, userId);
 
-        if (orderRepository.existsByCampaignIdAndParticipantIdAndStatus(campaignId, participant.getId(), OrderStatus.SUCCESS)) {
+        if (orderRepository.existsByCampaignIdAndParticipantIdAndStatus(campaignId, participant.getId(), OrderStatus.CONFIRMED)
+                || orderRepository.existsByCampaignIdAndParticipantIdAndStatus(campaignId, participant.getId(), OrderStatus.PENDING_PAYMENT)) {
             inventoryGateService.releaseReservation(campaignId, item.getId(), userId);
             throw conflict(OrderFailReason.ALREADY_PURCHASED, "User already purchased in this campaign");
         }
@@ -83,7 +88,8 @@ public class PurchaseService {
                 .campaign(campaign)
                 .item(item)
                 .participant(participant)
-                .status(OrderStatus.SUCCESS)
+                .status(OrderStatus.PENDING_PAYMENT)
+                .paymentExpiresAt(java.time.LocalDateTime.now().plusMinutes(paymentHoldMinutes))
                 .build();
 
         try {
@@ -100,8 +106,9 @@ public class PurchaseService {
     }
 
     @Transactional(readOnly = true)
-    public List<OrderResponse> getOrders(Long campaignId, String userId) {
-        findCampaignForTenant(campaignId, CurrentTenant.getId());
+    public List<OrderResponse> getOrders(Long campaignId) {
+        String userId = AuthenticatedUser.get().getId().toString();
+        findCampaignForTenant(campaignId, AuthenticatedUser.tenantId());
         return orderRepository.findByCampaignIdAndParticipantExternalCustomerId(campaignId, userId)
                 .stream()
                 .map(orderMapper::toResponse)

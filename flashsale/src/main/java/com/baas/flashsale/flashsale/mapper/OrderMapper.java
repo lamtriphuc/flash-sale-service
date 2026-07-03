@@ -16,6 +16,9 @@ public class OrderMapper {
                 .userId(order.getParticipant().getExternalCustomerId())
                 .status(order.getStatus())
                 .failReason(order.getFailReason())
+                .paymentExpiresAt(order.getPaymentExpiresAt())
+                .confirmedAt(order.getConfirmedAt())
+                .cancelledAt(order.getCancelledAt())
                 .createdAt(order.getCreatedAt())
                 .build();
     }

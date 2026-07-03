@@ -4,9 +4,9 @@ server:
 spring:
   datasource:
     driver-class-name: org.postgresql.Driver
-    username: postgres
-    password: 111
-    url: jdbc:postgresql://localhost:5432/flash_sale_service
+    username: ${SPRING_DATASOURCE_USERNAME:postgres}
+    password: ${SPRING_DATASOURCE_PASSWORD:111}
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/flash_sale_service}
 
   jpa:
     hibernate:
@@ -22,7 +22,30 @@ spring:
       password: ${REDIS_PASSWORD:}
       timeout: 2s
 
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
+
+  mail:
+    host: ${MAIL_HOST:localhost}
+    port: ${MAIL_PORT:1025}
+
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 5MB
+
 app:
   jwt:
     secret: ${JWT_SECRET:change-this-secret-to-at-least-32-characters}
-    expiration-ms: 86400000
+    expiration-ms: ${JWT_EXPIRATION_MS:900000}
+    refresh-expiration-ms: ${JWT_REFRESH_EXPIRATION_MS:604800000}
+  payment:
+    timeout-minutes: ${PAYMENT_TIMEOUT_MINUTES:5}
+    timeout-scan-ms: ${PAYMENT_TIMEOUT_SCAN_MS:60000}
+  cloudinary:
+    cloud-name: ${CLOUDINARY_CLOUD_NAME:}
+    api-key: ${CLOUDINARY_API_KEY:}
+    api-secret: ${CLOUDINARY_API_SECRET:}

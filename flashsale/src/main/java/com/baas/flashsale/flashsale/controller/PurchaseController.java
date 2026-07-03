@@ -28,8 +28,8 @@ public class PurchaseController {
     @GetMapping("/{campaignId}/orders")
     public List<OrderResponse> getOrders(
             @PathVariable Long campaignId,
-            @RequestParam String userId
+            java.security.Principal principal
     ) {
-        return purchaseService.getOrders(campaignId, userId);
+        return purchaseService.getOrders(campaignId);
     }
 }

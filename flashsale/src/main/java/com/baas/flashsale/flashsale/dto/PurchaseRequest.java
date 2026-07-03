@@ -1,6 +1,5 @@
 package com.baas.flashsale.flashsale.dto;
 
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;
@@ -10,7 +9,4 @@ import lombok.Setter;
 public class PurchaseRequest {
     @NotNull(message = "Item id is required")
     private Long itemId;
-
-    @NotBlank(message = "User id is required")
-    private String userId;
 }

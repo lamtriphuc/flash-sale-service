@@ -1,7 +1,5 @@
 package com.baas.flashsale.tenant.controller;
 
-import com.baas.flashsale.tenant.dto.ApiKeyResponse;
-import com.baas.flashsale.tenant.dto.CreateApiKeyRequest;
 import com.baas.flashsale.tenant.dto.CreateTenantRequest;
 import com.baas.flashsale.tenant.dto.TenantResponse;
 import com.baas.flashsale.tenant.service.TenantService;
@@ -14,8 +12,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/tenants")
@@ -31,13 +27,13 @@ public class TenantController {
     }
 
     @GetMapping
-    @PreAuthorize("hasRole('OWNER')")
+    @PreAuthorize("hasRole('ADMIN')")
     public TenantResponse getCurrentTenant(@AuthenticationPrincipal TenantUserDetails currentUser) {
         return tenantService.getTenantById(currentUser.getTenantId());
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasRole('OWNER')")
+    @PreAuthorize("hasRole('ADMIN')")
     public TenantResponse getTenantById(
             @AuthenticationPrincipal TenantUserDetails currentUser,
             @PathVariable Long id
@@ -47,7 +43,7 @@ public class TenantController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('OWNER')")
+    @PreAuthorize("hasRole('ADMIN')")
     public TenantResponse updateTenant(
             @AuthenticationPrincipal TenantUserDetails currentUser,
             @PathVariable Long id,
@@ -58,7 +54,7 @@ public class TenantController {
     }
 
     @PatchMapping("/{id}/deactivate")
-    @PreAuthorize("hasRole('OWNER')")
+    @PreAuthorize("hasRole('ADMIN')")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deactivateTenant(
             @AuthenticationPrincipal TenantUserDetails currentUser,
@@ -67,40 +63,6 @@ public class TenantController {
         assertOwnTenant(currentUser, id);
         tenantService.deactivateTenant(currentUser.getTenantId());
     }
-
-    // API KEY ==========================================
-
-    @PostMapping("/{tenantId}/api-keys")
-    @PreAuthorize("hasRole('OWNER')")
-    public ResponseEntity<ApiKeyResponse> createApiKey(
-            @AuthenticationPrincipal TenantUserDetails currentUser,
-            @PathVariable Long tenantId,
-            @Valid @RequestBody CreateApiKeyRequest request
-    ) {
-        assertOwnTenant(currentUser, tenantId);
-        return ResponseEntity.status(HttpStatus.CREATED).body(tenantService.createApiKey(currentUser.getTenantId(), request));
-    }
-
-    @GetMapping("/{tenantId}/api-keys")
-    @PreAuthorize("hasRole('OWNER')")
-    public List<ApiKeyResponse> getApiKeysByTenant(
-            @AuthenticationPrincipal TenantUserDetails currentUser,
-            @PathVariable Long tenantId
-    ) {
-        assertOwnTenant(currentUser, tenantId);
-        return tenantService.getApiKeysByTenant(currentUser.getTenantId());
-    }
-
-    @PatchMapping("/api-keys/{apiKeyId}/deactivate")
-    @PreAuthorize("hasRole('OWNER')")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void deactivateApiKey(
-            @AuthenticationPrincipal TenantUserDetails currentUser,
-            @PathVariable Long apiKeyId
-    ) {
-        tenantService.deactivateApiKey(currentUser.getTenantId(), apiKeyId);
-    }
-
     private void assertOwnTenant(TenantUserDetails currentUser, Long tenantId) {
         if (!currentUser.getTenantId().equals(tenantId)) {
             throw new BusinessException("FORBIDDEN_RESOURCE", HttpStatus.FORBIDDEN, "Tenant resource is forbidden");

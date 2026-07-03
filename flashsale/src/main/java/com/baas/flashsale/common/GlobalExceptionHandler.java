@@ -34,9 +34,6 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(MissingRequestHeaderException.class)
     public ResponseEntity<ErrorResponse> handleMissingHeader(MissingRequestHeaderException ex) {
-        if ("X-API-Key".equalsIgnoreCase(ex.getHeaderName())) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error("INVALID_API_KEY", "Missing X-API-Key"));
-        }
         return ResponseEntity.badRequest().body(error("VALIDATION_ERROR", "Missing header: " + ex.getHeaderName()));
     }
 

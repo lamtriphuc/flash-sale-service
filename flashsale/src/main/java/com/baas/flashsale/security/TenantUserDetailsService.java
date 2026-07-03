@@ -16,7 +16,16 @@ public class TenantUserDetailsService implements UserDetailsService {
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        throw new UsernameNotFoundException("Tenant id is required to load tenant users");
+        User user = userRepository.findByEmail(username)
+                .orElseThrow(() -> new UsernameNotFoundException("User not found"));
+        return new TenantUserDetails(user);
+    }
+
+    @Transactional(readOnly = true)
+    public TenantUserDetails loadUserByEmail(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new UsernameNotFoundException("User not found"));
+        return new TenantUserDetails(user);
     }
 
     @Transactional(readOnly = true)

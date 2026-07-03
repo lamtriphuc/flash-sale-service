@@ -33,6 +33,12 @@ public class Campaign {
     @Column(nullable = false)
     private String name;
 
+    @Column(name = "thumbnail_url")
+    private String thumbnailUrl;
+
+    @Column(name = "thumbnail_public_id")
+    private String thumbnailPublicId;
+
     @Enumerated(EnumType.STRING)
     private CampaignStatus status;
 
@@ -46,7 +52,7 @@ public class Campaign {
     public void prePersist() {
         this.createdAt = LocalDateTime.now();
         if (this.status == null) {
-            this.status = CampaignStatus.ACTIVE;
+            this.status = CampaignStatus.UPCOMING;
         }
     }
 }

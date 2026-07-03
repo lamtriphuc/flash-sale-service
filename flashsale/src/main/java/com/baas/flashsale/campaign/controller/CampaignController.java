@@ -9,6 +9,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -20,10 +21,16 @@ public class CampaignController {
     private final CampaignService campaignService;
 
     @PostMapping
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<CampaignResponse> createCampaign(
             @Valid @RequestBody CreateCampaignRequest request
     ) {
         return ResponseEntity.status(HttpStatus.CREATED).body(campaignService.createCampaign(request));
+    }
+
+    @GetMapping
+    public List<CampaignResponse> getAllCampaigns() {
+        return campaignService.getAllCampaigns();
     }
 
     @GetMapping("/{campaignId}")
@@ -34,6 +41,7 @@ public class CampaignController {
     }
 
     @PostMapping("/{campaignId}/items")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<FlashSaleItemResponse> addItem(
             @PathVariable Long campaignId,
             @Valid @RequestBody CreateFlashSaleItemRequest request

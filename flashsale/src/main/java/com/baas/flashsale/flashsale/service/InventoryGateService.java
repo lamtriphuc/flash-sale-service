@@ -16,6 +16,7 @@ import java.util.List;
 public class InventoryGateService {
     private final StringRedisTemplate redisTemplate;
     private final DefaultRedisScript<List> reserveInventoryScript;
+    private final DefaultRedisScript<List> releaseInventoryScript;
     private final RedisKeyBuilder redisKeyBuilder;
 
     public void initializeStock(Long campaignId, Long itemId, int quantity) {
@@ -48,13 +49,23 @@ public class InventoryGateService {
         return new InventoryGateResult(status, remainingQuantity);
     }
 
-    public void releaseReservation(Long campaignId, Long itemId, String userId) {
+    public boolean releaseReservation(Long campaignId, Long itemId, String userId) {
+        List<?> result;
         try {
-            redisTemplate.opsForValue().increment(redisKeyBuilder.stockKey(campaignId, itemId));
-            redisTemplate.opsForSet().remove(redisKeyBuilder.buyersKey(campaignId), userId);
+            result = redisTemplate.execute(
+                    releaseInventoryScript,
+                    List.of(redisKeyBuilder.stockKey(campaignId, itemId), redisKeyBuilder.buyersKey(campaignId)),
+                    userId
+            );
         } catch (DataAccessException ex) {
             throw inventoryGateUnavailable(ex);
         }
+
+        if (result == null || result.isEmpty()) {
+            throw new IllegalStateException("Redis inventory release returned an invalid result");
+        }
+
+        return "RELEASED".equals(String.valueOf(result.get(0)));
     }
 
     private BusinessException inventoryGateUnavailable(DataAccessException ex) {

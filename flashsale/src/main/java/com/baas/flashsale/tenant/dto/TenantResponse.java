@@ -15,5 +15,4 @@ public class TenantResponse {
     private Boolean active;
     private LocalDateTime createdAt;
     private Long ownerUserId;
-    private String apiKey;
 }

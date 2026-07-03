@@ -13,28 +13,38 @@ export const options = {
 };
 
 const BASE_URL = __ENV.BASE_URL || 'http://localhost:8080';
-const API_KEY = __ENV.API_KEY;
 const CAMPAIGN_ID = __ENV.CAMPAIGN_ID;
 const ITEM_ID = __ENV.ITEM_ID;
+const ACCESS_TOKEN = __ENV.ACCESS_TOKEN;
+const USER_TOKENS = (__ENV.USER_TOKENS || '')
+  .split(',')
+  .map((token) => token.trim())
+  .filter(Boolean);
+
+function tokenForIteration() {
+  if (USER_TOKENS.length > 0) {
+    return USER_TOKENS[__ITER % USER_TOKENS.length];
+  }
+  return ACCESS_TOKEN;
+}
 
 export default function () {
-  const userId = `user-${__ITER}`;
+  const token = tokenForIteration();
 
   const response = http.post(
     `${BASE_URL}/api/v1/campaigns/${CAMPAIGN_ID}/orders`,
     JSON.stringify({
       itemId: Number(ITEM_ID),
-      userId,
     }),
     {
       headers: {
         'Content-Type': 'application/json',
-        'X-API-Key': API_KEY,
+        Authorization: `Bearer ${token}`,
       },
     }
   );
 
   check(response, {
-    'status is 201 or 409': (r) => [201, 409].includes(r.status),
+    'status is expected': (r) => [201, 202, 409, 503].includes(r.status),
   });
 }

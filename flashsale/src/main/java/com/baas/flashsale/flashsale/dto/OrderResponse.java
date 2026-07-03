@@ -17,5 +17,8 @@ public class OrderResponse {
     private String userId;
     private OrderStatus status;
     private String failReason;
+    private LocalDateTime paymentExpiresAt;
+    private LocalDateTime confirmedAt;
+    private LocalDateTime cancelledAt;
     private LocalDateTime createdAt;
 }
