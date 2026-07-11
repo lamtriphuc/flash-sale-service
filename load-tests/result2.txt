@@ -1,0 +1,92 @@
+
+         /\      Grafana   /‾‾/  
+    /\  /  \     |\  __   /  /   
+   /  \/    \    | |/ /  /   ‾‾\ 
+  /          \   |   (  |  (‾)  |
+ / __________ \  |_|\_\  \_____/ 
+
+
+     execution: local
+        script: -
+        output: -
+
+     scenarios: (100.00%) 1 scenario, 100 max VUs, 40s max duration (incl. graceful stop):
+              * flash_sale_spike: 100 looping VUs for 10s (gracefulStop: 30s)
+
+
+running (01.0s), 100/100 VUs, 265 complete and 0 interrupted iterations
+flash_sale_spike   [  10% ] 100 VUs  01.0s/10s
+
+running (02.0s), 100/100 VUs, 592 complete and 0 interrupted iterations
+flash_sale_spike   [  20% ] 100 VUs  02.0s/10s
+
+running (03.0s), 100/100 VUs, 917 complete and 0 interrupted iterations
+flash_sale_spike   [  30% ] 100 VUs  03.0s/10s
+
+running (04.0s), 100/100 VUs, 1257 complete and 0 interrupted iterations
+flash_sale_spike   [  40% ] 100 VUs  04.0s/10s
+
+running (05.0s), 100/100 VUs, 1582 complete and 0 interrupted iterations
+flash_sale_spike   [  50% ] 100 VUs  05.0s/10s
+
+running (06.0s), 100/100 VUs, 1912 complete and 0 interrupted iterations
+flash_sale_spike   [  60% ] 100 VUs  06.0s/10s
+
+running (07.0s), 100/100 VUs, 2252 complete and 0 interrupted iterations
+flash_sale_spike   [  70% ] 100 VUs  07.0s/10s
+
+running (08.0s), 100/100 VUs, 2585 complete and 0 interrupted iterations
+flash_sale_spike   [  80% ] 100 VUs  08.0s/10s
+
+running (09.0s), 100/100 VUs, 2921 complete and 0 interrupted iterations
+flash_sale_spike   [  90% ] 100 VUs  09.0s/10s
+
+running (10.0s), 100/100 VUs, 3261 complete and 0 interrupted iterations
+flash_sale_spike   [ 100% ] 100 VUs  10.0s/10s
+
+
+  █ THRESHOLDS 
+
+    http_req_duration
+    ✓ 'p(95)<1000' p(95)=5.55ms
+
+    http_req_failed
+    ✗ 'rate<0.05' rate=100.00%
+
+
+  █ TOTAL RESULTS 
+
+    checks_total.......: 13460  1286.651098/s
+    checks_succeeded...: 24.63% 3316 out of 13460
+    checks_failed......: 75.36% 10144 out of 13460
+
+    ✗ is success (200)
+      ↳  0% — ✓ 0 / ✗ 3365
+    ✗ is out of stock/conflict (409)
+      ↳  0% — ✓ 0 / ✗ 3365
+    ✗ is rate limited (429)
+      ↳  98% — ✓ 3316 / ✗ 49
+    ✗ is server error (500)
+      ↳  0% — ✓ 0 / ✗ 3365
+
+    HTTP
+    http_req_duration....: avg=4.05ms   min=1.28ms   med=2.42ms   max=59.88ms  p(90)=3.85ms   p(95)=5.55ms  
+    http_req_failed......: 100.00% 3365 out of 3365
+    http_reqs............: 3365    321.662774/s
+
+    EXECUTION
+    iteration_duration...: avg=301.94ms min=103.11ms med=298.92ms max=574.14ms p(90)=462.68ms p(95)=482.64ms
+    iterations...........: 3365    321.662774/s
+    vus..................: 100     min=100          max=100
+    vus_max..............: 100     min=100          max=100
+
+    NETWORK
+    data_received........: 1.4 MB  130 kB/s
+    data_sent............: 1.1 MB  107 kB/s
+
+
+
+
+running (10.5s), 000/100 VUs, 3365 complete and 0 interrupted iterations
+flash_sale_spike ✓ [ 100% ] 100 VUs  10s
+time="2026-07-11T09:27:57Z" level=error msg="thresholds on metrics 'http_req_failed' have been crossed"

@@ -1,0 +1,39 @@
+spring:
+  application:
+    name: backend
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/flash_sale
+    username: postgres
+    password: YOUR_DB_PASSWORD
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+  
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: admin
+    password: YOUR_RABBITMQ_PASSWORD
+
+jwt:
+  secret: YOUR_JWT_SECRET_KEY_HERE
+  expirationMs: 86400000
+
+crypto:
+  aes:
+    secret: YOUR_AES_SECRET_KEY_HERE
+
+server:
+  port: 8080

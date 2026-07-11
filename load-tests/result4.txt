@@ -1,0 +1,92 @@
+
+         /\      Grafana   /‾‾/  
+    /\  /  \     |\  __   /  /   
+   /  \/    \    | |/ /  /   ‾‾\ 
+  /          \   |   (  |  (‾)  |
+ / __________ \  |_|\_\  \_____/ 
+
+
+     execution: local
+        script: -
+        output: -
+
+     scenarios: (100.00%) 1 scenario, 10 max VUs, 40s max duration (incl. graceful stop):
+              * flash_sale_spike: 10 looping VUs for 10s (gracefulStop: 30s)
+
+
+running (01.0s), 10/10 VUs, 18 complete and 0 interrupted iterations
+flash_sale_spike   [  10% ] 10 VUs  01.0s/10s
+
+running (02.0s), 10/10 VUs, 49 complete and 0 interrupted iterations
+flash_sale_spike   [  20% ] 10 VUs  02.0s/10s
+
+running (03.0s), 10/10 VUs, 79 complete and 0 interrupted iterations
+flash_sale_spike   [  30% ] 10 VUs  03.0s/10s
+
+running (04.0s), 10/10 VUs, 108 complete and 0 interrupted iterations
+flash_sale_spike   [  40% ] 10 VUs  04.0s/10s
+
+running (05.0s), 10/10 VUs, 140 complete and 0 interrupted iterations
+flash_sale_spike   [  50% ] 10 VUs  05.0s/10s
+
+running (06.0s), 10/10 VUs, 171 complete and 0 interrupted iterations
+flash_sale_spike   [  60% ] 10 VUs  06.0s/10s
+
+running (07.0s), 10/10 VUs, 201 complete and 0 interrupted iterations
+flash_sale_spike   [  70% ] 10 VUs  07.0s/10s
+
+running (08.0s), 10/10 VUs, 237 complete and 0 interrupted iterations
+flash_sale_spike   [  80% ] 10 VUs  08.0s/10s
+
+running (09.0s), 10/10 VUs, 267 complete and 0 interrupted iterations
+flash_sale_spike   [  90% ] 10 VUs  09.0s/10s
+
+running (10.0s), 10/10 VUs, 304 complete and 0 interrupted iterations
+flash_sale_spike   [ 100% ] 10 VUs  10.0s/10s
+
+
+  █ THRESHOLDS 
+
+    http_req_duration
+    ✓ 'p(95)<1000' p(95)=55.74ms
+
+    http_req_failed
+    ✗ 'rate<0.05' rate=100.00%
+
+
+  █ TOTAL RESULTS 
+
+    checks_total.......: 1256    122.120255/s
+    checks_succeeded...: 0.00%   0 out of 1256
+    checks_failed......: 100.00% 1256 out of 1256
+
+    ✗ is success (200)
+      ↳  0% — ✓ 0 / ✗ 314
+    ✗ is out of stock/conflict (409)
+      ↳  0% — ✓ 0 / ✗ 314
+    ✗ is rate limited (429)
+      ↳  0% — ✓ 0 / ✗ 314
+    ✗ is server error (500)
+      ↳  0% — ✓ 0 / ✗ 314
+
+    HTTP
+    http_req_duration....: avg=20.35ms  min=3.45ms   med=8.8ms    max=280.83ms p(90)=26.38ms  p(95)=55.74ms 
+    http_req_failed......: 100.00% 314 out of 314
+    http_reqs............: 314     30.530064/s
+
+    EXECUTION
+    iteration_duration...: avg=324.09ms min=108.03ms med=319.67ms max=715.23ms p(90)=476.78ms p(95)=497.04ms
+    iterations...........: 314     30.530064/s
+    vus..................: 10      min=10         max=10
+    vus_max..............: 10      min=10         max=10
+
+    NETWORK
+    data_received........: 85 kB   8.3 kB/s
+    data_sent............: 105 kB  10 kB/s
+
+
+
+
+running (10.3s), 00/10 VUs, 314 complete and 0 interrupted iterations
+flash_sale_spike ✓ [ 100% ] 10 VUs  10s
+time="2026-07-11T09:31:43Z" level=error msg="thresholds on metrics 'http_req_failed' have been crossed"
